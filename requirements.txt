@@ -1,0 +1,6 @@
+aiogram==3.13.0
+groq
+aiosqlite
+cryptography
+aiohttp
+python-dotenv

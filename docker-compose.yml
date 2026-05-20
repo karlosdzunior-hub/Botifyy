@@ -6,14 +6,15 @@ services:
     container_name: botify_main
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - GROK_API_KEY=${GROK_API_KEY}
       - BOT_USERNAME=${BOT_USERNAME}
       - YOOMONEY_WALLET=${YOOMONEY_WALLET}
       - YOOMONEY_SECRET=${YOOMONEY_SECRET}
-      - WEBHOOK_PORT=8080
+      - YOOMONEY_FORWARD_URL=${YOOMONEY_FORWARD_URL:-}
+      - WEBHOOK_PORT=8090
       - DB_PATH=/app/botify.db
     volumes:
       - ./botify.db:/app/botify.db

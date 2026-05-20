@@ -31,11 +31,13 @@ async def build_and_run_bot(bot_id: int, bot_token: str, extra_env: dict = None)
 
     image_name = f"botify_bot_{bot_id}:latest"
     build_cmd = ["docker", "build", "-t", image_name, host_bot_dir]
+    build_env = {**os.environ, "DOCKER_BUILDKIT": "0"}
     try:
         proc = await asyncio.create_subprocess_exec(
             *build_cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=build_env,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
         if proc.returncode != 0:

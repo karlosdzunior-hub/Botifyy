@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from payments import CREDIT_PACKAGES
 
 
 def main_menu_keyboard() -> InlineKeyboardMarkup:
@@ -35,7 +36,10 @@ def cancel_dialogue_keyboard() -> InlineKeyboardMarkup:
 def confirm_creation_keyboard(cost: int, bot_type: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=f"✅ Генерировать ({cost} кредитов)", callback_data=f"confirm_create:{bot_type}"),
+        InlineKeyboardButton(
+            text=f"✅ Генерировать ({cost} кредитов)",
+            callback_data=f"confirm_create:{bot_type}",
+        ),
         InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_dialogue"),
     )
     return builder.as_markup()
@@ -51,15 +55,26 @@ def credits_keyboard() -> InlineKeyboardMarkup:
 
 def buy_credits_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="💳 150 кредитов — 224 ₽", callback_data="buy:150"),
-        InlineKeyboardButton(text="💳 300 кредитов — 449 ₽", callback_data="buy:300"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="💳 600 кредитов — 898 ₽", callback_data="buy:600"),
-        InlineKeyboardButton(text="💳 1000 кредитов — 1490 ₽", callback_data="buy:1000"),
-    )
+    for pkg in CREDIT_PACKAGES:
+        builder.row(InlineKeyboardButton(
+            text=f"{pkg['label']} — {pkg['credits']} кр. | ⭐{pkg['stars']} / {pkg['rub']}₽",
+            callback_data=f"buy:{pkg['credits']}",
+        ))
     builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data="credits"))
+    return builder.as_markup()
+
+
+def payment_method_keyboard(credits: int, stars: int, rub: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(
+        text=f"⭐ Telegram Stars — {stars} Stars",
+        callback_data=f"pay_stars:{credits}",
+    ))
+    builder.row(InlineKeyboardButton(
+        text=f"💵 ЮMoney — {rub} ₽",
+        callback_data=f"pay_yoomoney:{credits}",
+    ))
+    builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data="buy_credits"))
     return builder.as_markup()
 
 

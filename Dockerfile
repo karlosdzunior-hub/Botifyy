@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bot/ ./bot/
 
+RUN mkdir -p /app/data /app/generated_bots
+
 ENV PYTHONPATH=/app/bot
 ENV PYTHONUNBUFFERED=1
 

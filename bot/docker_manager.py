@@ -6,7 +6,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-BOTS_DIR = "/home/runner/workspace/generated_bots"
+BOTS_DIR = os.getenv("BOTS_DIR", "/app/generated_bots")
 CONTAINER_PREFIX = "botify_user_bot_"
 
 

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  botify:
+    build: .
+    container_name: botify_main
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GROK_API_KEY=${GROK_API_KEY}
+    volumes:
+      - ./botify.db:/app/botify.db
+      - ./generated_bots:/app/generated_bots
+      - /var/run/docker.sock:/var/run/docker.sock
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-files: "3"

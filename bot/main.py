@@ -13,6 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from database import init_db
 from handlers import start, create_bot, my_bots, credits, hosting, referrals, help
+from scheduler import monitor_bots, notify_expiring_hosting
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -40,7 +41,10 @@ async def main():
     dp.include_router(referrals.router)
     dp.include_router(help.router)
 
-    logger.info("Botify запущен!")
+    asyncio.create_task(monitor_bots(bot))
+    asyncio.create_task(notify_expiring_hosting(bot))
+
+    logger.info("Botify запущен! Мониторинг активен.")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 

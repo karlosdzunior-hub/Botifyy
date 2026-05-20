@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
@@ -16,9 +16,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="💳 Кредиты", callback_data="credits"),
         InlineKeyboardButton(text="👥 Рефералы", callback_data="referrals"),
     )
-    builder.row(
-        InlineKeyboardButton(text="❓ Помощь", callback_data="help"),
-    )
+    builder.row(InlineKeyboardButton(text="❓ Помощь", callback_data="help"))
     return builder.as_markup()
 
 
@@ -45,15 +43,9 @@ def confirm_creation_keyboard(cost: int, bot_type: str) -> InlineKeyboardMarkup:
 
 def credits_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="💰 Пополнить", callback_data="buy_credits"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="📋 История", callback_data="credit_history"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu"),
-    )
+    builder.row(InlineKeyboardButton(text="💰 Пополнить", callback_data="buy_credits"))
+    builder.row(InlineKeyboardButton(text="📋 История", callback_data="credit_history"))
+    builder.row(InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu"))
     return builder.as_markup()
 
 
@@ -74,46 +66,37 @@ def buy_credits_keyboard() -> InlineKeyboardMarkup:
 def my_bots_keyboard(bots: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for bot in bots:
-        status_icon = {"created": "✅", "hosted": "🟢", "stopped": "🔴"}.get(bot["status"], "⚪")
-        builder.row(
-            InlineKeyboardButton(
-                text=f"{status_icon} {bot['name']}",
-                callback_data=f"bot_detail:{bot['id']}",
-            )
-        )
+        icon = {"created": "✅", "hosted": "🟢", "stopped": "🔴", "error": "⚠️"}.get(bot["status"], "⚪")
+        builder.row(InlineKeyboardButton(
+            text=f"{icon} {bot['name']}",
+            callback_data=f"bot_detail:{bot['id']}",
+        ))
     builder.row(InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu"))
     return builder.as_markup()
 
 
-def bot_detail_keyboard(bot_id: int, is_hosted: bool = False) -> InlineKeyboardMarkup:
+def bot_detail_keyboard(bot_id: int, is_hosted: bool = False, has_code: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if not is_hosted:
-        builder.row(
-            InlineKeyboardButton(text="🖥️ Захостить", callback_data=f"host_bot:{bot_id}"),
-        )
+        builder.row(InlineKeyboardButton(text="🖥️ Захостить", callback_data=f"host_bot:{bot_id}"))
     else:
         builder.row(
-            InlineKeyboardButton(text="⏸️ Остановить", callback_data=f"stop_bot:{bot_id}"),
-            InlineKeyboardButton(text="▶️ Запустить", callback_data=f"start_bot:{bot_id}"),
+            InlineKeyboardButton(text="⏸️ Стоп", callback_data=f"stop_bot:{bot_id}"),
+            InlineKeyboardButton(text="▶️ Старт", callback_data=f"start_bot:{bot_id}"),
+            InlineKeyboardButton(text="🔄 Рестарт", callback_data=f"restart_bot:{bot_id}"),
         )
-        builder.row(
-            InlineKeyboardButton(text="🔄 Перезапустить", callback_data=f"restart_bot:{bot_id}"),
-        )
+        builder.row(InlineKeyboardButton(text="📋 Логи", callback_data=f"logs_bot:{bot_id}"))
+    if has_code:
+        builder.row(InlineKeyboardButton(text="📥 Скачать код", callback_data=f"download_code:{bot_id}"))
     builder.row(InlineKeyboardButton(text="◀️ Мои боты", callback_data="my_bots"))
     return builder.as_markup()
 
 
 def hosting_plans_keyboard(bot_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="🟢 Мини — 399 ₽/мес", callback_data=f"buy_hosting:{bot_id}:mini"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="🔵 Стандарт — 890 ₽/мес", callback_data=f"buy_hosting:{bot_id}:standard"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="🟣 Макс — 1990 ₽/мес", callback_data=f"buy_hosting:{bot_id}:max"),
-    )
+    builder.row(InlineKeyboardButton(text="🟢 Мини — 399 ₽/мес", callback_data=f"buy_hosting:{bot_id}:mini"))
+    builder.row(InlineKeyboardButton(text="🔵 Стандарт — 890 ₽/мес", callback_data=f"buy_hosting:{bot_id}:standard"))
+    builder.row(InlineKeyboardButton(text="🟣 Макс — 1990 ₽/мес", callback_data=f"buy_hosting:{bot_id}:max"))
     builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data=f"bot_detail:{bot_id}"))
     return builder.as_markup()
 
@@ -126,8 +109,6 @@ def referrals_keyboard() -> InlineKeyboardMarkup:
 
 def help_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="💬 Поддержка", url="https://t.me/botify_support"),
-    )
+    builder.row(InlineKeyboardButton(text="💬 Поддержка", url="https://t.me/botify_support"))
     builder.row(InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu"))
     return builder.as_markup()

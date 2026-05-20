@@ -7,6 +7,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 BOTS_DIR = os.getenv("BOTS_DIR", "/app/generated_bots")
+HOST_BOTS_DIR = os.getenv("HOST_BOTS_DIR", BOTS_DIR)
 CONTAINER_PREFIX = "botify_user_bot_"
 
 
@@ -23,12 +24,13 @@ async def build_and_run_bot(bot_id: int, bot_token: str, extra_env: dict = None)
     if not os.path.exists(bot_dir):
         return False, "Директория бота не найдена"
 
+    host_bot_dir = os.path.join(HOST_BOTS_DIR, f"bot_{bot_id}")
     container_name = f"{CONTAINER_PREFIX}{bot_id}"
 
     await stop_bot_container(bot_id)
 
     image_name = f"botify_bot_{bot_id}:latest"
-    build_cmd = ["docker", "build", "-t", image_name, bot_dir]
+    build_cmd = ["docker", "build", "-t", image_name, host_bot_dir]
     try:
         proc = await asyncio.create_subprocess_exec(
             *build_cmd,

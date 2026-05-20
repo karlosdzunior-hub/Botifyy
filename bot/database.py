@@ -263,3 +263,87 @@ async def get_referral_earnings(telegram_id: int) -> int:
         ) as cursor:
             row = await cursor.fetchone()
         return row["total"] if row else 0
+
+
+async def update_bot_status(bot_id: int, status: str, generated_code: str = None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        if generated_code is not None:
+            await db.execute(
+                "UPDATE bots SET status = ?, description = ? WHERE id = ?",
+                (status, generated_code, bot_id),
+            )
+        else:
+            await db.execute(
+                "UPDATE bots SET status = ? WHERE id = ?", (status, bot_id)
+            )
+        await db.commit()
+
+
+async def save_bot_token(bot_id: int, token: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE bots SET bot_token = ? WHERE id = ?", (token, bot_id)
+        )
+        await db.commit()
+
+
+async def activate_hosting(user_id: int, bot_id: int, plan: str, days: int = 30):
+    from datetime import datetime, timedelta
+    expires_at = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO hosting (user_id, bot_id, plan, status, expires_at) VALUES (?, ?, ?, 'active', ?)",
+            (user_id, bot_id, plan, expires_at),
+        )
+        await db.execute("UPDATE bots SET status = 'hosted' WHERE id = ?", (bot_id,))
+        await db.commit()
+
+
+async def get_hosting_record(bot_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT h.*, u.telegram_id FROM hosting h JOIN users u ON h.user_id = u.id WHERE h.bot_id = ? AND h.status = 'active'",
+            (bot_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def get_all_hosted_bots():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT b.id as bot_id, b.name, b.status, b.bot_token, u.telegram_id "
+            "FROM bots b JOIN users u ON b.user_id = u.id "
+            "WHERE b.status IN ('hosted', 'error')"
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+async def get_expiring_hosting(days: int):
+    from datetime import datetime, timedelta
+    threshold = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    lower = (datetime.utcnow() + timedelta(days=days - 1)).strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT h.*, b.name, u.telegram_id FROM hosting h "
+            "JOIN bots b ON h.bot_id = b.id "
+            "JOIN users u ON h.user_id = u.id "
+            "WHERE h.status = 'active' AND h.expires_at BETWEEN ? AND ?",
+            (lower, threshold),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+async def get_user_telegram_id(user_id: int) -> int | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT telegram_id FROM users WHERE id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+        return row["telegram_id"] if row else None

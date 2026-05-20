@@ -2,7 +2,7 @@ import os
 import re
 from ai_client import client, GROQ_MODELS
 
-BOTS_DIR = "/home/runner/workspace/generated_bots"
+BOTS_DIR = os.getenv("BOTS_DIR", "/app/generated_bots")
 
 CODE_GEN_PROMPT = """Ты — эксперт по разработке Telegram-ботов на Python с использованием aiogram 3.x.
 Тебе дают резюме требований к боту — ты должен написать ПОЛНЫЙ, РАБОЧИЙ Python-код бота.

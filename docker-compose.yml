@@ -15,13 +15,13 @@ services:
       - YOOMONEY_SECRET=${YOOMONEY_SECRET}
       - YOOMONEY_FORWARD_URL=${YOOMONEY_FORWARD_URL:-}
       - WEBHOOK_PORT=8090
-      - DB_PATH=/app/botify.db
+      - DB_PATH=/app/data/botify.db
     volumes:
-      - ./botify.db:/app/botify.db
+      - ./data:/app/data
       - ./generated_bots:/app/generated_bots
       - /var/run/docker.sock:/var/run/docker.sock
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-files: "3"
+        max-file: "3"

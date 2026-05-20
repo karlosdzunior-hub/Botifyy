@@ -16,6 +16,7 @@ services:
       - YOOMONEY_FORWARD_URL=${YOOMONEY_FORWARD_URL:-}
       - WEBHOOK_PORT=8090
       - DB_PATH=/app/data/botify.db
+      - HOST_BOTS_DIR=/root/Botifyy/generated_bots
     volumes:
       - ./data:/app/data
       - ./generated_bots:/app/generated_bots

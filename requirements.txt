@@ -4,3 +4,6 @@ aiosqlite
 cryptography
 aiohttp
 python-dotenv
+docker
+paramiko
+jinja2

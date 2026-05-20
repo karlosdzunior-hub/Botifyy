@@ -2,6 +2,7 @@ import hashlib
 import logging
 from aiogram import Bot
 from aiogram.types import LabeledPrice
+from config import BOTIFY_LABEL_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ async def send_stars_invoice(bot: Bot, chat_id: int, credits: int):
 
 def build_yoomoney_url(wallet: str, telegram_id: int, credits: int, rub: int, bot_username: str) -> str:
     import urllib.parse
-    label = f"{telegram_id}_{credits}"
+    label = f"{BOTIFY_LABEL_PREFIX}{telegram_id}_{credits}"
     params = {
         "receiver": wallet,
         "quickpay-form": "button",

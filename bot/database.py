@@ -123,6 +123,10 @@ async def get_user(telegram_id: int):
         return dict(user) if user else None
 
 
+async def get_user_by_telegram_id(telegram_id: int):
+    return await get_user(telegram_id)
+
+
 async def get_user_credits(telegram_id: int) -> int:
     user = await get_user(telegram_id)
     return user["credits"] if user else 0

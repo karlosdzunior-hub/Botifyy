@@ -3,6 +3,9 @@ from aiogram.types import CallbackQuery, BufferedInputFile
 
 from database import get_user_bots, get_bot, get_user, update_bot_status, get_hosting_record
 from keyboards import my_bots_keyboard, bot_detail_keyboard, hosting_plans_keyboard, back_to_menu_keyboard
+from process_manager import (
+    start_bot_process, stop_bot_process, get_process_status, get_process_logs
+)
 from docker_manager import (
     stop_bot_container, start_bot_container, restart_bot_container,
     get_container_status, get_container_logs, is_docker_available
@@ -13,7 +16,8 @@ router = Router()
 
 STATUS_LABELS = {
     "created": "✅ Создан (код готов)",
-    "hosted": "🟢 Запущен на сервере",
+    "running": "🟡 Запущен (активен пока бот онлайн)",
+    "hosted": "🟢 Захощен 24/7",
     "stopped": "🔴 Остановлен",
     "error": "⚠️ Ошибка",
 }
@@ -52,12 +56,16 @@ async def show_bot_detail(callback: CallbackQuery):
         await callback.answer("Бот не найден", show_alert=True)
         return
 
-    status = STATUS_LABELS.get(bot["status"], bot["status"])
-    bot_type = TYPE_LABELS.get(bot["bot_type"], bot["bot_type"])
-    created_at = bot["created_at"][:10] if bot["created_at"] else "—"
+    status = bot["status"]
+
+    if status == "running":
+        proc_status = get_process_status(bot_id)
+        if proc_status != "running":
+            status = "stopped"
+            await update_bot_status(bot_id, "stopped")
 
     container_info = ""
-    if bot["status"] == "hosted":
+    if status == "hosted":
         docker_status = await get_container_status(bot_id)
         container_info = f"\n🐳 Контейнер: <b>{docker_status}</b>"
 
@@ -66,19 +74,90 @@ async def show_bot_detail(callback: CallbackQuery):
     if hosting:
         hosting_info = f"\n💳 Тариф: <b>{hosting['plan'].capitalize()}</b>\n📅 До: <b>{hosting['expires_at'][:10]}</b>"
 
+    status_label = STATUS_LABELS.get(status, status)
+    bot_type = TYPE_LABELS.get(bot["bot_type"], bot["bot_type"])
+    created_at = bot["created_at"][:10] if bot["created_at"] else "—"
+
     text = (
         f"🤖 <b>{bot['name']}</b>\n\n"
         f"📋 Тип: {bot_type}\n"
-        f"🔹 Статус: {status}{container_info}{hosting_info}\n"
+        f"🔹 Статус: {status_label}{container_info}{hosting_info}\n"
         f"📅 Создан: {created_at}"
     )
 
-    is_hosted = bot["status"] in ("hosted", "stopped")
     has_code = get_bot_code_path(bot_id) is not None or bot.get("description")
 
     await callback.message.edit_text(
         text,
-        reply_markup=bot_detail_keyboard(bot_id, is_hosted, has_code),
+        reply_markup=bot_detail_keyboard(bot_id, status=status, has_code=has_code),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("run_process:"))
+async def run_process(callback: CallbackQuery):
+    bot_id = int(callback.data.split(":")[1])
+    bot = await get_bot(bot_id)
+    if not bot:
+        await callback.answer("Бот не найден", show_alert=True)
+        return
+
+    if not bot.get("bot_token"):
+        await callback.answer("❌ Токен бота не задан. Пересоздай бота.", show_alert=True)
+        return
+
+    has_code = get_bot_code_path(bot_id) is not None or bot.get("description")
+    if not has_code:
+        await callback.answer("❌ Код бота не найден", show_alert=True)
+        return
+
+    msg = await callback.message.edit_text(
+        f"⚙️ <b>Запускаю бота «{bot['name']}»...</b>\n\nУстанавливаю зависимости — это займёт 15–30 сек.",
+        parse_mode="HTML",
+    )
+
+    success, result = await start_bot_process(bot_id, bot["bot_token"])
+
+    if success:
+        await update_bot_status(bot_id, "running")
+        await msg.edit_text(
+            f"🟡 <b>Бот «{bot['name']}» запущен!</b>\n\n"
+            f"⚡ Режим: активен пока Botify онлайн\n"
+            f"🔢 PID: <code>{result}</code>\n\n"
+            f"Для работы 24/7 нажми <b>Захостить 24/7</b>.",
+            reply_markup=bot_detail_keyboard(bot_id, status="running", has_code=True),
+            parse_mode="HTML",
+        )
+    else:
+        await msg.edit_text(
+            f"❌ <b>Не удалось запустить бота</b>\n\n<code>{result}</code>",
+            reply_markup=bot_detail_keyboard(bot_id, status="created", has_code=has_code),
+            parse_mode="HTML",
+        )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("stop_process:"))
+async def stop_process(callback: CallbackQuery):
+    bot_id = int(callback.data.split(":")[1])
+    bot = await get_bot(bot_id)
+    ok = await stop_bot_process(bot_id)
+    if ok:
+        await update_bot_status(bot_id, "stopped")
+        await callback.answer(f"⏸️ Бот «{bot['name']}» остановлен", show_alert=True)
+    else:
+        await callback.answer("❌ Не удалось остановить", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("logs_process:"))
+async def logs_process(callback: CallbackQuery):
+    bot_id = int(callback.data.split(":")[1])
+    logs = get_process_logs(bot_id, lines=30)
+    if not logs.strip():
+        logs = "Логи пустые"
+    await callback.message.answer(
+        f"📋 <b>Логи бота (последние 30 строк):</b>\n\n<pre>{logs[:3000]}</pre>",
         parse_mode="HTML",
     )
     await callback.answer()
@@ -121,15 +200,16 @@ async def show_hosting_plans(callback: CallbackQuery):
     bot = await get_bot(bot_id)
 
     if not bot or not (get_bot_code_path(bot_id) or bot.get("description")):
-        await callback.answer("❌ Сначала создай бота — код не найден", show_alert=True)
+        await callback.answer("❌ Код бота не найден", show_alert=True)
         return
 
     if not bot.get("bot_token"):
-        await callback.answer("❌ Токен бота не задан. Пересоздай бота и введи токен.", show_alert=True)
+        await callback.answer("❌ Токен бота не задан. Пересоздай бота.", show_alert=True)
         return
 
     await callback.message.edit_text(
-        f"🖥️ <b>Хостинг для «{bot['name']}»</b>\n\n"
+        f"🖥️ <b>Хостинг 24/7 для «{bot['name']}»</b>\n\n"
+        f"Бот будет работать круглосуточно в Docker-контейнере.\n\n"
         f"🟢 <b>Мини</b> — 399 ₽/мес · 1 бот · до 2 000 пользователей\n\n"
         f"🔵 <b>Стандарт</b> — 890 ₽/мес · 3 бота · до 20 000 пользователей\n\n"
         f"🟣 <b>Макс</b> — 1 990 ₽/мес · 10 ботов · безлимит",
@@ -157,8 +237,7 @@ async def activate_hosting(callback: CallbackQuery):
     if not is_docker_available():
         await callback.message.edit_text(
             f"⚠️ <b>Docker недоступен на сервере</b>\n\n"
-            f"Убедись что Docker установлен на VPS и бот запущен через docker-compose.\n\n"
-            f"Код бота готов — скачай его в разделе 📦 Мои боты.",
+            f"Пока используй бесплатный запуск через кнопку <b>▶️ Запустить</b>.",
             reply_markup=back_to_menu_keyboard(), parse_mode="HTML",
         )
         await callback.answer()
@@ -166,7 +245,7 @@ async def activate_hosting(callback: CallbackQuery):
 
     user = await get_user(callback.from_user.id)
     launch_msg = await callback.message.edit_text(
-        f"🚀 <b>Запускаю бота «{bot['name']}»...</b>\n\nЭто занимает около 30–60 секунд.",
+        f"🚀 <b>Захожу бота «{bot['name']}» на 24/7...</b>\n\nЭто займёт 30–60 секунд.",
         parse_mode="HTML",
     )
 
@@ -177,18 +256,20 @@ async def activate_hosting(callback: CallbackQuery):
 
     if success:
         await db_activate_hosting(user["id"], bot_id, plan)
+        await update_bot_status(bot_id, "hosted")
         await launch_msg.edit_text(
-            f"✅ <b>Бот «{bot['name']}» запущен!</b>\n\n"
+            f"✅ <b>Бот «{bot['name']}» захощен 24/7!</b>\n\n"
             f"🐳 Контейнер: <code>{result}</code>\n"
             f"💳 Тариф: <b>{plan_name}</b> — {price} ₽/мес\n\n"
-            f"Бот работает 24/7. При падении — автоматически перезапустится.",
+            f"Бот работает круглосуточно. При падении — автоматически перезапустится.",
             reply_markup=back_to_menu_keyboard(), parse_mode="HTML",
         )
     else:
         await launch_msg.edit_text(
-            f"❌ <b>Ошибка запуска бота</b>\n\n<code>{result}</code>\n\n"
-            f"Проверь что Docker установлен на VPS и запущен.",
-            reply_markup=back_to_menu_keyboard(), parse_mode="HTML",
+            f"❌ <b>Ошибка запуска Docker</b>\n\n<code>{result}</code>\n\n"
+            f"Используй бесплатный режим — кнопка <b>▶️ Запустить</b>.",
+            reply_markup=bot_detail_keyboard(bot_id, status=bot["status"], has_code=True),
+            parse_mode="HTML",
         )
     await callback.answer()
 
@@ -211,7 +292,7 @@ async def start_bot(callback: CallbackQuery):
         await update_bot_status(bot_id, "hosted")
         await callback.answer(f"▶️ Бот «{bot['name']}» запущен", show_alert=True)
     else:
-        await callback.answer("❌ Не удалось запустить. Проверь Docker.", show_alert=True)
+        await callback.answer("❌ Не удалось запустить Docker-контейнер.", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("restart_bot:"))

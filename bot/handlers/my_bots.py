@@ -107,9 +107,17 @@ async def run_process(callback: CallbackQuery):
         await callback.answer("❌ Токен бота не задан. Пересоздай бота.", show_alert=True)
         return
 
-    has_code = get_bot_code_path(bot_id) is not None or bot.get("description")
-    if not has_code:
-        await callback.answer("❌ Код бота не найден", show_alert=True)
+    code_path = get_bot_code_path(bot_id)
+    if not code_path and bot.get("description"):
+        from code_generator import save_bot_code
+        try:
+            code_path = save_bot_code(bot_id, bot["description"], bot["name"])
+        except Exception as e:
+            await callback.answer(f"❌ Не удалось восстановить код: {e}", show_alert=True)
+            return
+
+    if not code_path:
+        await callback.answer("❌ Код бота не найден. Пересоздай бота.", show_alert=True)
         return
 
     msg = await callback.message.edit_text(

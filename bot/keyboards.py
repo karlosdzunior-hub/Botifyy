@@ -81,7 +81,7 @@ def payment_method_keyboard(credits: int, stars: int, rub: int) -> InlineKeyboar
 def my_bots_keyboard(bots: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for bot in bots:
-        icon = {"created": "✅", "hosted": "🟢", "stopped": "🔴", "error": "⚠️"}.get(bot["status"], "⚪")
+        icon = {"created": "✅", "running": "🟡", "hosted": "🟢", "stopped": "🔴", "error": "⚠️"}.get(bot["status"], "⚪")
         builder.row(InlineKeyboardButton(
             text=f"{icon} {bot['name']}",
             callback_data=f"bot_detail:{bot['id']}",
@@ -90,17 +90,26 @@ def my_bots_keyboard(bots: list) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def bot_detail_keyboard(bot_id: int, is_hosted: bool = False, has_code: bool = False) -> InlineKeyboardMarkup:
+def bot_detail_keyboard(bot_id: int, status: str = "created", has_code: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    if not is_hosted:
-        builder.row(InlineKeyboardButton(text="🖥️ Захостить", callback_data=f"host_bot:{bot_id}"))
-    else:
+
+    if status == "created" or status == "stopped":
+        builder.row(InlineKeyboardButton(text="▶️ Запустить", callback_data=f"run_process:{bot_id}"))
+        builder.row(InlineKeyboardButton(text="🖥️ Захостить 24/7", callback_data=f"host_bot:{bot_id}"))
+
+    elif status == "running":
+        builder.row(InlineKeyboardButton(text="⏸️ Остановить", callback_data=f"stop_process:{bot_id}"))
+        builder.row(InlineKeyboardButton(text="📋 Логи", callback_data=f"logs_process:{bot_id}"))
+        builder.row(InlineKeyboardButton(text="🖥️ Захостить 24/7", callback_data=f"host_bot:{bot_id}"))
+
+    elif status == "hosted":
         builder.row(
             InlineKeyboardButton(text="⏸️ Стоп", callback_data=f"stop_bot:{bot_id}"),
             InlineKeyboardButton(text="▶️ Старт", callback_data=f"start_bot:{bot_id}"),
             InlineKeyboardButton(text="🔄 Рестарт", callback_data=f"restart_bot:{bot_id}"),
         )
         builder.row(InlineKeyboardButton(text="📋 Логи", callback_data=f"logs_bot:{bot_id}"))
+
     if has_code:
         builder.row(InlineKeyboardButton(text="📥 Скачать код", callback_data=f"download_code:{bot_id}"))
     builder.row(InlineKeyboardButton(text="◀️ Мои боты", callback_data="my_bots"))

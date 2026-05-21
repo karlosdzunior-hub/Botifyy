@@ -1,6 +1,6 @@
 import os
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TEST_BOT_TOKEN", "")
 GROK_API_KEY = os.getenv("GROK_API_KEY", "")
 
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Dhrnbeuwgh_bot")
